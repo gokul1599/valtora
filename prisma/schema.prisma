@@ -1,0 +1,482 @@
+// Production relational schema for ForgeAI.
+//
+// The runtime currently uses `src/lib/db` (JSON-backed) behind a clean
+// storage abstraction. This file describes the scalable Postgres model
+// so the platform can migrate by swapping the store implementation.
+// Each collection name in the JSON store maps to the table below.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  free
+  pro
+  founder
+}
+
+enum AuthProvider {
+  credentials
+  google
+}
+
+enum StartupStage {
+  idea
+  validation
+  mvp
+  beta
+  launch
+  growth
+}
+
+enum JourneyStage {
+  just_idea
+  researching
+  building_mvp
+  have_mvp
+  have_customers
+  growing
+}
+
+enum BlueprintStatus {
+  draft
+  reviewed
+  approved
+}
+
+enum FeatureCategory {
+  must
+  should
+  could
+  not_now
+}
+
+enum FeatureStatus {
+  planned
+  in_progress
+  done
+}
+
+enum MvpStatus {
+  draft
+  approved
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+enum TaskPriority {
+  low
+  med
+  high
+}
+
+enum RoadmapPhase {
+  validation
+  mvp
+  beta
+  launch
+  growth
+}
+
+enum AiActionType {
+  create_feature
+  delete_feature
+  modify_roadmap
+  create_persona
+  update_business_model
+  generate_pricing
+  create_task
+  change_priority
+  generate_launch_plan
+}
+
+enum AiActionStatus {
+  pending_approval
+  approved
+  applied
+  rejected
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+enum MessageKind {
+  chat
+  action
+}
+
+enum GenerationKind {
+  blueprint
+  blueprint_section
+  market
+  competitors
+  personas
+  mvp
+  product_vision
+  business_model
+  pricing
+  marketing
+  launch
+  roadmap
+  technical
+  chat
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
+enum DocumentKind {
+  markdown
+  json
+  csv
+  pdf
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String?
+  authProvider AuthProvider @default(credentials)
+  googleId     String?  @unique
+  avatarUrl    String?
+  plan         Plan     @default(free)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  startups      Startup[]
+  subscriptions Subscription[]
+  generations   AiGeneration[]
+  conversations AiConversation[]
+}
+
+model Startup {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  tagline   String       @default("")
+  stage     StartupStage @default(idea)
+  status    String       @default("active")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  profile        StartupProfile?
+  blueprint      Blueprint?
+  personas       Persona[]
+  competitors    Competitor[]
+  market         MarketResearch[]
+  features       Feature[]
+  userStories    UserStory[]
+  mvp            Mvp?
+  businessModel  BusinessModel?
+  productVision  ProductVision?
+  roadmap        RoadmapTask[]
+  marketing      MarketingPlan?
+  launches       LaunchItem[]
+  assessment     StartupAssessment?
+  conversations  AiConversation[]
+  generations    AiGeneration[]
+  documents      Document[]
+
+  @@index([userId])
+}
+
+model StartupProfile {
+  id            String       @id @default(cuid())
+  startupId     String       @unique
+  startup       Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  idea          String       @db.Text
+  audience      String       @db.Text
+  problem       String       @db.Text
+  monetization  String       @db.Text
+  journeyStage  JourneyStage
+  updatedAt     DateTime     @updatedAt
+}
+
+model Blueprint {
+  id          String            @id @default(cuid())
+  startupId   String            @unique
+  startup     Startup           @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  version     Int               @default(1)
+  generatedAt DateTime          @default(now())
+  sections    BlueprintSection[]
+
+  @@index([startupId])
+}
+
+model BlueprintSection {
+  id          String          @id @default(cuid())
+  blueprintId String
+  blueprint   Blueprint       @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+  slug        String
+  title       String
+  content     String          @db.Text
+  status      BlueprintStatus @default(draft)
+  updatedAt   DateTime        @updatedAt
+
+  @@index([blueprintId])
+}
+
+model Persona {
+  id         String  @id @default(cuid())
+  startupId  String
+  startup    Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  name       String
+  role       String
+  demographics String @db.Text
+  goals      String  @db.Text
+  painPoints String  @db.Text
+  quote      String
+  channel    String
+  priority   String  @default("primary")
+  createdAt  DateTime @default(now())
+
+  @@index([startupId])
+}
+
+model Competitor {
+  id             String   @id @default(cuid())
+  startupId      String
+  startup        Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  company        String
+  product        String
+  targetUsers    String
+  pricing        String
+  strengths      String[] @default([])
+  weaknesses     String[] @default([])
+  differentiation String  @db.Text
+  verified       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([startupId])
+}
+
+model MarketResearch {
+  id              String   @id @default(cuid())
+  startupId       String
+  startup         Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  tam             Float
+  sam             Float
+  som             Float
+  tamNote         String   @db.Text
+  samNote         String   @db.Text
+  somNote         String   @db.Text
+  trends          String[] @default([])
+  growthRate      String
+  estimationMethod String  @db.Text
+  verified        Boolean  @default(false)
+  generatedAt     DateTime @default(now())
+
+  @@index([startupId])
+}
+
+model Feature {
+  id          String         @id @default(cuid())
+  startupId   String
+  startup     Startup        @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  name        String
+  description String         @db.Text
+  category    FeatureCategory
+  userStory   String?        @db.Text
+  status      FeatureStatus  @default(planned)
+  createdAt   DateTime       @default(now())
+
+  @@index([startupId])
+}
+
+model UserStory {
+  id                String        @id @default(cuid())
+  startupId         String
+  startup           Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  asA               String
+  iWant             String
+  soThat            String
+  acceptanceCriteria String        @db.Text
+  category          FeatureCategory @default(should)
+  createdAt         DateTime      @default(now())
+
+  @@index([startupId])
+}
+
+model Mvp {
+  id             String    @id @default(cuid())
+  startupId      String    @unique
+  startup        Startup   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  objective      String    @db.Text
+  coreFeatures   String[]  @default([])
+  userStories    String[]  @default([])
+  screens        String[]  @default([])
+  databaseRequirements String[] @default([])
+  apis           String[]  @default([])
+  authentication String    @db.Text
+  integrations   String[]  @default([])
+  devTasks       String[]  @default([])
+  status         MvpStatus @default(draft)
+  version        Int       @default(1)
+  updatedAt      DateTime  @updatedAt
+}
+
+model BusinessModel {
+  id              String   @id @default(cuid())
+  startupId       String   @unique
+  startup         Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  model           String
+  revenueStreams  String[] @default([])
+  pricingTiers    Json     @default("[]")
+  unitEconomics   String   @db.Text
+  notes           String   @db.Text
+  updatedAt       DateTime @updatedAt
+}
+
+model ProductVision {
+  id               String   @id @default(cuid())
+  startupId        String   @unique
+  startup          Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  vision           String   @db.Text
+  valueProposition String   @db.Text
+  customerSegments String[] @default([])
+  goals            String[] @default([])
+  updatedAt        DateTime @updatedAt
+}
+
+model RoadmapTask {
+  id          String        @id @default(cuid())
+  startupId   String
+  startup     Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  phase       RoadmapPhase
+  title       String
+  description String        @db.Text
+  status      TaskStatus    @default(todo)
+  priority    TaskPriority  @default(med)
+  dueDate     DateTime?
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+
+  @@index([startupId, phase])
+}
+
+model MarketingPlan {
+  id               String   @id @default(cuid())
+  startupId        String   @unique
+  startup          Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  positioning      String
+  tagline          String
+  landingCopy      String   @db.Text
+  targetAudience   String   @db.Text
+  acquisitionChannels String[] @default([])
+  contentStrategy  String[] @default([])
+  socialStrategy   String[] @default([])
+  launchCampaign   String[] @default([])
+  emailCampaign    String[] @default([])
+  seoIdeas         String[] @default([])
+  updatedAt        DateTime @updatedAt
+}
+
+model LaunchItem {
+  id          String       @id @default(cuid())
+  startupId   String
+  startup     Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  title       String
+  description String       @db.Text
+  category    String
+  status      TaskStatus   @default(todo)
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+
+  @@index([startupId])
+}
+
+model StartupAssessment {
+  id          String   @id @default(cuid())
+  startupId   String   @unique
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  score       Json
+  strengths   String[] @default([])
+  weaknesses  String[] @default([])
+  opportunities String[] @default([])
+  risks       String[] @default([])
+  nextActions String[] @default([])
+  stage       StartupStage
+  generatedAt DateTime @default(now())
+}
+
+model AiConversation {
+  id        String        @id @default(cuid())
+  startupId String
+  userId    String
+  startup   Startup       @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New conversation")
+  messages  AiMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([startupId, updatedAt])
+}
+
+model AiMessage {
+  id             String        @id @default(cuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String        @db.Text
+  kind           MessageKind   @default(chat)
+  action         Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId])
+}
+
+model AiGeneration {
+  id        String       @id @default(cuid())
+  userId    String
+  startupId String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startup   Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  kind      GenerationKind
+  provider  String
+  model     String
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  startupId String
+  startup   Startup      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  kind      DocumentKind
+  title     String
+  content   String       @db.Text
+  createdAt DateTime     @default(now())
+
+  @@index([startupId])
+}
+
+model Subscription {
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             Plan             @default(free)
+  status           SubscriptionStatus @default(trialing)
+  stripeCustomerId String?
+  stripePriceId    String?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime         @default(now())
+}
