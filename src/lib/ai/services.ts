@@ -76,7 +76,7 @@ Generate the COMPLETE startup blueprint as strict JSON with this exact shape:
   "market": { "marketDefinition": "", "tam": "", "sam": "", "som": "", "growthDrivers": [], "marketChallenges": [] },
   "competitors": [{ "name": "", "description": "", "strengths": [], "weaknesses": [], "positioning": "", "opportunity": "" }],
   "differentiation": { "strategy": "", "defensibility": "", "moat": "" },
-  "businessModel": { "customerSegments": [], "valueProposition": "", "channels": [], "customerRelationships": "", "revenueStreams": [], "keyResources": [], "keyActivities": [], "keyPartnerships": [], "costStructure": [] },
+  "businessModel": { "customerSegments": [], "valueProposition": "", "channels": [], "customerRelationships": "", "revenueStreams": [{ "name": "", "source": "" }], "keyResources": [], "keyActivities": [], "keyPartnerships": [], "costStructure": [] },
   "pricing": [{ "name": "", "targetCustomer": "", "priceHypothesis": "", "features": [], "valueJustification": "", "upgradeTrigger": "" }],
   "product": { "vision": "", "positioning": "", "primaryUseCases": [], "featureList": [{ "name": "", "description": "", "priority": "medium", "status": "proposed", "effort": 1, "impact": 1, "confidence": 3 }] },
   "mvp": { "objective": "", "coreFeatures": [], "excludedFeatures": [], "userStories": [], "requiredScreens": [], "dependencies": [], "developmentTasks": [], "successMetrics": [] },

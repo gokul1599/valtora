@@ -45,40 +45,45 @@ export class GroqProvider implements AiProvider {
     const client = getGroqClient();
     const model = getModel();
 
-    const response = await client.chat.completions.create({
-      model,
-      temperature: opts.temperature ?? 0.4,
-      max_tokens: opts.maxTokens ?? 4000,
-      messages: [
-        { role: "system", content: opts.system },
-        {
-          role: "user",
-          content: `${opts.prompt}\n\nReturn ONLY valid JSON that conforms to the schema described. No markdown, no commentary.`,
-        },
-      ],
-    });
+    const userContent = `${opts.prompt}\n\nReturn ONLY valid JSON that conforms to the schema described. No markdown, no commentary.`;
 
-    const raw = response.choices[0]?.message?.content ?? "";
-    const tokenUsage = response.usage;
-    const tokensIn = tokenUsage?.prompt_tokens ?? 0;
-    const tokensOut = tokenUsage?.completion_tokens ?? 0;
+    // Retry once on schema noncompliance: long structured outputs are prone to
+    // occasional structural slips (arrays rendered as strings, truncated keys).
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await client.chat.completions.create({
+        model,
+        temperature: opts.temperature ?? 0.4,
+        max_tokens: opts.maxTokens ?? 4000,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: opts.system },
+          { role: "user", content: userContent },
+        ],
+      });
 
-    const parsed = safeJsonParse(raw);
-    const validated = opts.zodSchema.safeParse(parsed);
-    if (!validated.success) {
+      const raw = response.choices[0]?.message?.content ?? "";
+      const tokenUsage = response.usage;
+      const tokensIn = tokenUsage?.prompt_tokens ?? 0;
+      const tokensOut = tokenUsage?.completion_tokens ?? 0;
+      const durationMs = Date.now() - started;
+
+      const parsed = safeJsonParse(raw);
+      const validated = opts.zodSchema.safeParse(parsed);
+      if (validated.success) {
+        return { data: validated.data, raw, tokensIn, tokensOut, durationMs };
+      }
+
       const messages =
-        validated.error?.issues?.map((i) => i.message).join("; ") ??
-        "Unknown validation error";
-      throw new Error(`AI returned invalid structured data: ${messages}`);
+        validated.error?.issues
+          ?.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+          .join("; ") ?? "Unknown validation error";
+
+      if (attempt === 1) {
+        throw new Error(`AI returned invalid structured data: ${messages}`);
+      }
     }
 
-    return {
-      data: validated.data,
-      raw,
-      tokensIn,
-      tokensOut,
-      durationMs: Date.now() - started,
-    };
+    throw new Error("AI generation failed unexpectedly");
   }
 
   async chat(opts: {
