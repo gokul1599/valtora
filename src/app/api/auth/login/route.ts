@@ -1,42 +1,33 @@
-import { NextRequest, NextResponse } from "next/server";
-import { loginSchema } from "@/lib/validation/schemas";
+import { NextRequest } from "next/server";
 import { verifyPassword } from "@/lib/auth/password";
-import { getUserByEmail } from "@/lib/db";
 import { createSession } from "@/lib/auth/session";
-import { rateLimit } from "@/lib/auth/rate-limit";
+import { db } from "@/lib/db";
+import { loginSchema } from "@/lib/validation/schemas";
+import { jsonError, zodErrorMessage } from "@/lib/api-helpers";
 
-export const runtime = "nodejs";
-
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   let body: unknown;
   try {
-    body = await req.json();
+    body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  const ip = req.headers.get("x-forwarded-for") ?? "local";
-  if (!rateLimit(`login:${ip}`)) {
-    return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 });
+    return jsonError("Invalid JSON body");
   }
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
-    const first = parsed.error.issues[0];
-    return NextResponse.json({ error: first?.message ?? "Invalid input" }, { status: 422 });
+    return jsonError(zodErrorMessage(parsed));
   }
 
   const { email, password } = parsed.data;
-  const user = await getUserByEmail(email);
-  if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
-    return NextResponse.json(
-      { error: "Incorrect email or password." },
-      { status: 401 }
-    );
+
+  const user = await db.user.findUnique({ where: { email } });
+  if (!user || !(await verifyPassword(password, user.password))) {
+    return jsonError("Invalid email or password", 401);
   }
 
-  await createSession(user);
-  return NextResponse.json({
+  await createSession({ userId: user.id, email: user.email, name: user.name });
+
+  return Response.json({
     ok: true,
     user: { id: user.id, name: user.name, email: user.email, plan: user.plan },
   });

@@ -1,49 +1,51 @@
+import "server-only";
+
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import type { SessionClaims, User } from "../types";
 
-const SESSION_COOKIE = "forgeai_session";
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.AUTH_SECRET ?? "forgeai-dev-secret-change-me"
-);
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const SESSION_COOKIE = "valtora_session";
+const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days
 
-export async function createSession(user: User): Promise<void> {
-  const token = await new SignJWT({
-    email: user.email,
-    name: user.name,
-  })
+export interface SessionPayload {
+  userId: string;
+  email: string;
+  name: string;
+}
+
+function getSecret(): Uint8Array {
+  const secret =
+    process.env.AUTH_SECRET ?? "valtora-dev-secret-change-me";
+  return new TextEncoder().encode(secret);
+}
+
+export async function createSession(payload: SessionPayload) {
+  const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
-    .setSubject(user.id)
     .setIssuedAt()
-    .setExpirationTime(`${MAX_AGE_SECONDS}s`)
-    .sign(SECRET_KEY);
+    .setExpirationTime(`${SESSION_DURATION}s`)
+    .sign(getSecret());
 
-  const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: MAX_AGE_SECONDS,
+    maxAge: SESSION_DURATION,
   });
 }
 
-export async function destroySession(): Promise<void> {
-  const store = await cookies();
-  store.delete(SESSION_COOKIE);
-}
-
-export async function getSession(): Promise<SessionClaims | null> {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
+export async function getSession(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
-    if (!payload.sub) return null;
+    const { payload } = await jwtVerify(token, getSecret());
+    if (!payload.userId || !payload.email) return null;
     return {
-      sub: payload.sub,
-      email: String(payload.email ?? ""),
+      userId: String(payload.userId),
+      email: String(payload.email),
       name: String(payload.name ?? ""),
     };
   } catch {
@@ -51,15 +53,11 @@ export async function getSession(): Promise<SessionClaims | null> {
   }
 }
 
-export async function requireSession(): Promise<SessionClaims> {
-  const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
-  return session;
-}
-
-export async function currentUser(): Promise<User | null> {
-  const session = await getSession();
-  if (!session) return null;
-  const { getUserById } = await import("../db");
-  return getUserById(session.sub);
+export async function destroySession() {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    path: "/",
+    maxAge: 0,
+  });
 }

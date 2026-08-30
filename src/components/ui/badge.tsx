@@ -1,37 +1,30 @@
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
 
-type Tone = "neutral" | "brand" | "ai" | "success" | "warning" | "danger" | "info";
+type BadgeTone = "default" | "accent" | "success" | "warning" | "danger" | "muted";
 
-const tones: Record<Tone, string> = {
-  neutral: "bg-[var(--surface-2)] text-[var(--muted)]",
-  brand: "bg-[var(--color-brand-500)]/10 text-[var(--color-brand-600)] dark:text-[var(--color-brand-300)]",
-  ai: "bg-[var(--color-ai-500)]/10 text-[var(--color-ai-600)] dark:text-[var(--color-ai-300)]",
-  success: "bg-[var(--color-success)]/12 text-emerald-700 dark:text-emerald-300",
-  warning: "bg-[var(--color-warning)]/15 text-amber-700 dark:text-amber-300",
-  danger: "bg-red-500/10 text-red-700 dark:text-red-300",
-  info: "bg-[var(--color-info)]/12 text-blue-700 dark:text-blue-300",
+const toneClasses: Record<BadgeTone, string> = {
+  default: "bg-[var(--border-soft)] text-[var(--fg-secondary)]",
+  accent: "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)]",
+  success: "bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)]",
+  warning: "bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)]",
+  danger: "bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)]",
+  muted: "bg-[var(--border-soft)] text-[var(--fg-muted)]",
 };
 
 export function Badge({
-  tone = "neutral",
-  dot,
+  tone = "default",
   className,
-  children,
-}: {
-  tone?: Tone;
-  dot?: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement> & { tone?: BadgeTone }) {
   return (
-    <span className={cn("chip", tones[tone], className)}>
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
-      {children}
-    </span>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium leading-4",
+        toneClasses[tone],
+        className,
+      )}
+      {...props}
+    />
   );
-}
-
-export function Dot({ tone = "neutral" }: { tone?: Tone }) {
-  return <span className={cn("inline-block h-1.5 w-1.5 rounded-full", tones[tone].split(" ")[0])} />;
 }

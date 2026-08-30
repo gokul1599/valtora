@@ -1,53 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
-import { signupSchema } from "@/lib/validation/schemas";
+import { NextRequest } from "next/server";
 import { hashPassword } from "@/lib/auth/password";
-import { createUser, getUserByEmail } from "@/lib/db";
 import { createSession } from "@/lib/auth/session";
-import { newId } from "@/lib/db/store";
+import { db } from "@/lib/db";
+import { signupSchema } from "@/lib/validation/schemas";
+import { jsonError, zodErrorMessage } from "@/lib/api-helpers";
 
-export const runtime = "nodejs";
-
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   let body: unknown;
   try {
-    body = await req.json();
+    body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return jsonError("Invalid JSON body");
   }
 
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {
-    const first = parsed.error.issues[0];
-    return NextResponse.json(
-      { error: first?.message ?? "Invalid input" },
-      { status: 422 }
-    );
+    return jsonError(zodErrorMessage(parsed));
   }
 
   const { name, email, password } = parsed.data;
-  const existing = await getUserByEmail(email);
+
+  const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
-    return NextResponse.json(
-      { error: "An account with this email already exists." },
-      { status: 409 }
-    );
+    return jsonError("An account with this email already exists", 409);
   }
 
-  const passwordHash = await hashPassword(password);
-  const user = await createUser({
-    id: newId("user"),
-    email,
-    name,
-    passwordHash,
-    authProvider: "credentials",
-    plan: "free",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  const user = await db.user.create({
+    data: {
+      name,
+      email,
+      password: await hashPassword(password),
+      plan: "free",
+    },
   });
 
-  await createSession(user);
-  return NextResponse.json(
-    { ok: true, user: { id: user.id, name: user.name, email: user.email, plan: user.plan } },
-    { status: 201 }
-  );
+  await createSession({ userId: user.id, email: user.email, name: user.name });
+
+  return Response.json({
+    ok: true,
+    user: { id: user.id, name: user.name, email: user.email, plan: user.plan },
+  });
 }

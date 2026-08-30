@@ -1,115 +1,62 @@
 import { z } from "zod";
 
-const id = z.string().min(1);
-
-export const loginSchema = z.object({
-  email: z.string().trim().email("Enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-
 export const signupSchema = z.object({
-  name: z.string().trim().min(2, "Enter your name").max(80),
-  email: z.string().trim().email("Enter a valid email address"),
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(60),
+  email: z.string().trim().email("Enter a valid email").max(120),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
-    .max(128),
+    .max(100),
 });
 
-export const forgotPasswordSchema = z.object({
-  email: z.string().trim().email("Enter a valid email address"),
+export const loginSchema = z.object({
+  email: z.string().trim().email("Enter a valid email").max(120),
+  password: z.string().min(1, "Password is required"),
 });
-
-export const resetPasswordSchema = z
-  .object({
-    token: z.string().min(8),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(128),
-    confirm: z.string(),
-  })
-  .refine((d) => d.password === d.confirm, {
-    path: ["confirm"],
-    message: "Passwords do not match",
-  });
 
 export const onboardingSchema = z.object({
-  idea: z.string().trim().min(20, "Describe your idea in at least 20 characters").max(4000),
-  audience: z.string().trim().min(3, "Who is this for?").max(1000),
-  problem: z.string().trim().min(10, "Describe the problem you solve").max(2000),
-  monetization: z.string().trim().min(3, "How will you make money?").max(1000),
-  journeyStage: z.enum([
-    "just-idea",
-    "researching",
-    "building-mvp",
-    "have-mvp",
-    "have-customers",
-    "growing",
-  ]),
+  idea: z.string().trim().min(20, "Describe your idea in more detail (20+ characters)").max(2000),
+  audience: z.string().trim().min(3, "Who is it for?").max(500),
+  problem: z.string().trim().min(10, "What problem does it solve?").max(1000),
+  monetization: z.string().trim().min(3, "How will it make money?").max(500),
+  stage: z.enum(["idea", "researching", "prototype", "mvp", "early_customers", "growth"]),
+  goal: z.string().trim().min(10, "What do you want to achieve in 90 days?").max(500),
 });
 
-export const startupProfileSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  tagline: z.string().trim().max(200),
+export type OnboardingInput = z.infer<typeof onboardingSchema>;
+
+export const startupNameSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+});
+
+export const sectionSaveSchema = z.object({
+  key: z.string().min(1),
+  data: z.unknown(),
 });
 
 export const featureSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  description: z.string().trim().max(2000),
-  category: z.enum(["must", "should", "could", "not-now"]),
+  description: z.string().trim().max(1000).optional().or(z.literal("")),
+  priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  effort: z.number().int().min(1).max(5).default(1),
+  impact: z.number().int().min(1).max(5).default(1),
+  confidence: z.number().int().min(1).max(5).default(3),
 });
 
-export const personaSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  role: z.string().trim().min(2).max(120),
-  demographics: z.string().trim().max(1000),
-  goals: z.string().trim().max(1000),
-  painPoints: z.string().trim().max(1000),
-  quote: z.string().trim().max(300),
-  channel: z.string().trim().max(200),
-  priority: z.enum(["primary", "secondary"]),
+export const taskSchema = z.object({
+  title: z.string().trim().min(2).max(200),
+  description: z.string().trim().max(1000).optional().or(z.literal("")),
+  priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  stage: z.string().default("validation"),
 });
 
-export const competitorSchema = z.object({
-  company: z.string().trim().min(1).max(120),
-  product: z.string().trim().max(300),
-  targetUsers: z.string().trim().max(300),
-  pricing: z.string().trim().max(200),
-  strengths: z.array(z.string()).max(10).default([]),
-  weaknesses: z.array(z.string()).max(10).default([]),
-  differentiation: z.string().trim().max(1000),
-  verified: z.boolean().default(false),
-});
-
-export const roadmapTaskSchema = z.object({
-  phase: z.enum(["validation", "mvp", "beta", "launch", "growth"]),
-  title: z.string().trim().min(2).max(160),
-  description: z.string().trim().max(1000),
-  priority: z.enum(["low", "med", "high"]).default("med"),
-  dueDate: z.string().optional(),
-});
-
-export const aiChatSchema = z.object({
-  conversationId: z.string().optional(),
+export const chatSchema = z.object({
   message: z.string().trim().min(1).max(4000),
+  startupId: z.string().optional(),
+  conversationId: z.string().optional(),
 });
+export type ChatInput = z.infer<typeof chatSchema>;
 
-export const businessModelSchema = z.object({
-  model: z.string().trim().max(200),
-  revenueStreams: z.array(z.string()).max(10),
-  unitEconomics: z.string().trim().max(2000),
-  notes: z.string().trim().max(2000),
+export const upgradeSchema = z.object({
+  plan: z.enum(["pro", "founder"]),
 });
-
-export type OnboardingInput = z.infer<typeof onboardingSchema>;
-export type FeatureInput = z.infer<typeof featureSchema>;
-export type PersonaInput = z.infer<typeof personaSchema>;
-export type CompetitorInput = z.infer<typeof competitorSchema>;
-export type RoadmapTaskInput = z.infer<typeof roadmapTaskSchema>;
-export type BusinessModelInput = z.infer<typeof businessModelSchema>;
-
-export function parseOrNull<T>(schema: z.ZodType<T>, data: unknown): T | null {
-  const res = schema.safeParse(data);
-  return res.success ? res.data : null;
-}

@@ -1,28 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { apiUser, apiStartupId } from "@/lib/api-helpers";
+import { requireUser } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
+import { z } from "zod";
 
-export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-/** Update the founder's startup profile (idea / audience / problem / monetization). */
-export async function PUT(req: NextRequest) {
-  const { user, error } = await apiUser();
-  if (error) return error;
-  const body = (await req.json().catch(() => ({}))) as any;
-  const { startupId, error: err } = await apiStartupId(req, user, body);
-  if (err) return err;
+export async function PATCH(req: Request) {
+  try {
+    const user = await requireUser();
+    const body = await req.json().catch(() => ({}));
 
-  const existing = await db.getProfile(startupId);
-  if (!existing) return NextResponse.json({ error: "No profile found" }, { status: 404 });
+    const schema = z.object({
+      name: z.string().min(1, "Name is required").max(60),
+    });
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ ok: false, error: parsed.error.issues[0]?.message ?? "Invalid data" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-  const next = {
-    ...existing,
-    idea: typeof body.idea === "string" ? body.idea.trim() : existing.idea,
-    audience: typeof body.audience === "string" ? body.audience.trim() : existing.audience,
-    problem: typeof body.problem === "string" ? body.problem.trim() : existing.problem,
-    monetization: typeof body.monetization === "string" ? body.monetization.trim() : existing.monetization,
-    updatedAt: new Date().toISOString(),
-  };
-  await db.setProfile(next);
-  return NextResponse.json({ ok: true, profile: next });
+    const updated = await db.user.update({
+      where: { id: user.id },
+      data: { name: parsed.data.name.trim() },
+      select: { id: true, name: true, email: true, plan: true },
+    });
+
+    return new Response(JSON.stringify({ ok: true, user: updated }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof Response) return err;
+    return new Response(
+      JSON.stringify({ ok: false, error: err instanceof Error ? err.message : "Request failed" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
 }

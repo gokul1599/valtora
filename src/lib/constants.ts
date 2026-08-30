@@ -1,92 +1,102 @@
-import type { Plan } from "./types";
+export const APP_NAME = "VALTORA";
+export const AI_NAME = "Zorvyn";
+export const AI_FULL_NAME = "Zorvyn AI";
 
-export const APP_NAME = "ForgeAI";
+export type PlanKey = "free" | "pro" | "founder";
 
-export const PLAN_LIMITS: Record<
-  Plan,
-  { startups: number; aiGenerationsPerMonth: number; label: string }
-> = {
-  free: { startups: 1, aiGenerationsPerMonth: 20, label: "Free" },
-  pro: { startups: 10, aiGenerationsPerMonth: 200, label: "Pro" },
-  founder: { startups: 100, aiGenerationsPerMonth: 1000, label: "Founder" },
-};
-
-export const PLANS: {
-  id: Plan;
-  name: string;
-  price: string;
-  cadence: string;
+export interface PlanConfig {
+  label: string;
+  startups: number;
+  aiGenerationsPerMonth: number;
   tagline: string;
   features: string[];
-  cta: string;
-  highlighted: boolean;
-}[] = [
-  {
-    id: "free",
-    name: "Free",
-    price: "$0",
-    cadence: "/month",
-    tagline: "Run your first idea through the Forge.",
-    features: [
-      "1 active startup",
-      "Basic startup blueprint",
-      "20 AI generations / month",
-      "Startup intelligence score",
-      "Roadmap basics",
-    ],
-    cta: "Start free",
-    highlighted: false,
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "$29",
-    cadence: "/month",
-    tagline: "For founders building for real.",
-    features: [
-      "10 startup projects",
-      "Advanced AI analysis",
-      "Competitor intelligence",
-      "MVP generator & technical architect",
-      "Unlimited market snapshots",
-      "Full export suite (PDF, Markdown, JSON, CSV)",
-      "200 AI generations / month",
-    ],
-    cta: "Go Pro",
-    highlighted: true,
-  },
-  {
-    id: "founder",
-    name: "Founder",
-    price: "$79",
-    cadence: "/month",
-    tagline: "The full co-founder experience.",
-    features: [
-      "Unlimited projects",
-      "Advanced research & reports",
-      "AI automation & structured actions",
-      "Team collaboration",
-      "Priority processing",
-      "1,000 AI generations / month",
-    ],
-    cta: "Become a Founder",
-    highlighted: false,
-  },
-];
+}
 
-/**
- * Billing architecture.
- *
- * Payments are not simulated. Plans map to a `Subscription` record and an
- * `upsertSubscription` repository call. When payments go live, attach the
- * resulting Stripe objects here (Stripe Checkout session -> subscription
- * → webhook updates `status`/`stripeCustomerId`/`currentPeriodEnd`). The
- * `billing.ts` module isolates Stripe so nothing in the UI touches it.
- */
-export const BILLING = {
-  stripeReady: false,
-  checkoutUrl: null as string | null,
-  portalUrl: null as string | null,
+export const PLAN_LIMITS: Record<PlanKey, PlanConfig> = {
+  free: {
+    label: "Free",
+    startups: 1,
+    aiGenerationsPerMonth: 20,
+    tagline: "For validating a single idea.",
+    features: [
+      "1 startup",
+      "Startup blueprint",
+      "Basic AI (20 generations / month)",
+      "Dashboard & next actions",
+    ],
+  },
+  pro: {
+    label: "Pro",
+    startups: 10,
+    aiGenerationsPerMonth: 200,
+    tagline: "For founders building seriously.",
+    features: [
+      "Seek unlimited",
+      "10 startups",
+      "Advanced AI (200 generations / month)",
+      "Market & competitor intelligence",
+      "MVP generator",
+      "Technical architecture",
+      "Interactive roadmap",
+      "Export suite",
+    ],
+  },
+  founder: {
+    label: "Founder",
+    startups: 100,
+    aiGenerationsPerMonth: 1000,
+    tagline: "For teams and power founders.",
+    features: [
+      "Seek unlimited",
+      "100 startups",
+      "Highest AI usage (1000 generations / month)",
+      "Team collaboration",
+      "AI automation",
+      "Advanced reports",
+      "Priority processing",
+    ],
+  },
+};
+
+export const STAGES = [
+  { key: "idea", label: "Just an idea" },
+  { key: "researching", label: "Researching" },
+  { key: "prototype", label: "Prototype" },
+  { key: "mvp", label: "MVP" },
+  { key: "early_customers", label: "Early customers" },
+  { key: "growth", label: "Growth" },
+] as const;
+
+export const STAGE_LABELS: Record<string, string> = Object.fromEntries(
+  STAGES.map((s) => [s.key, s.label]),
+);
+
+export const SCORE_DIMENSIONS = [
+  "Problem strength",
+  "Market opportunity",
+  "Differentiation",
+  "Customer clarity",
+  "Monetization",
+  "Feasibility",
+  "Execution readiness",
+] as const;
+
+export const SEMANTIC_COLORS = {
+  bg: "#08090B",
+  surface: "#0D0F12",
+  elevated: "#13161A",
+  border: "#242930",
+  fg: "#F5F7FA",
+  secondary: "#9AA2AD",
+  muted: "#68717D",
+  accent: "#7C6BFF",
+  accentSoft: "#6255D8",
+  success: "#39B979",
+  warning: "#D99B36",
+  danger: "#D85C63",
 } as const;
 
-export const GENERATION_WARN_AT = 80; // % of monthly quota before warning
+export const BILLING = {
+  stripeReady: false,
+  provider: "none",
+} as const;

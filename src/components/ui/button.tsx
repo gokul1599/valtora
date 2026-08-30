@@ -1,84 +1,81 @@
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import React, { type ButtonHTMLAttributes, type ReactNode } from "react";
 
-type Variant = "primary" | "ghost" | "soft" | "outline" | "danger";
-type Size = "sm" | "md" | "lg" | "icon";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "danger";
+type ButtonSize = "sm" | "md" | "lg";
 
-const styles: Record<Variant, string> = {
-  primary: "btn btn-primary",
-  ghost: "btn btn-ghost",
-  soft: "btn btn-soft",
-  outline: "btn btn-outline",
-  danger: "btn btn-danger",
-};
-
-const sizes: Record<Size, string> = {
-  sm: "px-3 py-1.5 text-xs rounded-lg",
-  md: "px-4 py-2 text-sm rounded-[0.625rem]",
-  lg: "px-5 py-2.5 text-sm rounded-[0.625rem]",
-  icon: "h-9 w-9 rounded-lg",
-};
-
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  size?: Size;
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   loading?: boolean;
-  loadingText?: string;
-  icon?: ReactNode;
-  asChild?: boolean;
+  fullWidth?: boolean;
 }
 
-export function Button({
-  variant = "primary",
-  size = "md",
-  loading,
-  loadingText,
-  icon,
-  className,
-  children,
-  disabled,
-  asChild,
-  ...props
-}: ButtonProps) {
-  const cls = cn(styles[variant], sizes[size], className);
-  const inner = loading ? (
-    <>
-      <Spinner className="h-3.5 w-3.5" />
-      {loadingText ?? children}
-    </>
-  ) : (
-    <>
-      {icon}
-      {children}
-    </>
-  );
+const variantClasses: Record<ButtonVariant, string> = {
+  primary:
+    "bg-[var(--accent)] text-[var(--accent-fg)] hover:bg-[var(--accent-soft)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
+  secondary:
+    "bg-[var(--elevated)] text-[var(--fg)] border border-[var(--border)] hover:bg-[var(--border-soft)]",
+  ghost: "bg-transparent text-[var(--fg-secondary)] hover:text-[var(--fg)] hover:bg-[var(--border-soft)]",
+  outline:
+    "bg-transparent text-[var(--fg)] border border-[var(--border)] hover:border-[var(--fg-muted)] hover:bg-[var(--surface)]",
+  danger:
+    "bg-[var(--danger)] text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--danger)]",
+};
 
-  if (asChild) {
-    const child = React.Children.only(children) as React.ReactElement<{ className?: string }>;
-    return React.cloneElement(child, { className: cn(cls, child.props.className) });
-  }
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: "h-8 px-3 text-xs rounded-md gap-1.5",
+  md: "h-9.5 px-4 text-sm rounded-lg gap-2",
+  lg: "h-11 px-6 text-sm rounded-lg gap-2",
+};
 
-  return (
-    <button className={cls} disabled={disabled || loading} {...props}>
-      {inner}
-    </button>
-  );
-}
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    { className, variant = "primary", size = "md", loading, fullWidth, disabled, children, ...props },
+    ref,
+  ) => {
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          "inline-flex items-center justify-center font-medium transition-all duration-150 select-none",
+          "disabled:opacity-50 disabled:pointer-events-none",
+          "focus-visible:outline-none",
+          variantClasses[variant],
+          sizeClasses[size],
+          fullWidth && "w-full",
+          className,
+        )}
+        disabled={disabled || loading}
+        {...props}
+      >
+        {loading && (
+          <svg
+            className="animate-spin size-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        )}
+        {children}
+      </button>
+    );
+  },
+);
 
-export function Spinner({ className }: { className?: string }) {
-  return (
-    <svg
-      className={cn("animate-spin", className)}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-      <path
-        className="opacity-90"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
-  );
-}
+Button.displayName = "Button";

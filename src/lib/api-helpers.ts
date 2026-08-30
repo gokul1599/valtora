@@ -1,52 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "./auth/session";
-import { getUserById, getStartup, userOwnsStartup } from "./db";
-import type { User } from "./types";
+import "server-only";
 
-export async function apiUser(): Promise<
-  { user: User; error: null } | { user: null; error: NextResponse }
-> {
+import { NextResponse } from "next/server";
+import { getSession, type SessionPayload } from "@/lib/auth/session";
+import { db } from "@/lib/db";
+
+export function jsonError(message: string, status = 400) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
-  if (!session)
-    return { user: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  const user = await getUserById(session.sub);
-  if (!user)
-    return { user: null, error: NextResponse.json({ error: "User not found" }, { status: 401 }) };
-  return { user, error: null };
+  if (!session) throw new Response("Unauthorized", { status: 401 });
+  return session;
 }
 
-/** Resolve the target startup: explicit id (ownership-checked) or the active one. */
-export async function apiStartupId(
-  req: NextRequest,
-  user: User,
-  body?: unknown
-): Promise<{ startupId: string; error: null } | { startupId: null; error: NextResponse }> {
-  const raw = body ? (body as { startupId?: string }).startupId : undefined;
-  if (raw) {
-    if (!(await userOwnsStartup(user.id, raw)))
-      return { startupId: null, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
-    return { startupId: raw, error: null };
+export async function requireUser() {
+  const session = await requireSession();
+  const user = await db.user.findUnique({ where: { id: session.userId } });
+  if (!user) throw new Response("User not found", { status: 401 });
+  return user;
+}
+
+export function zodErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "issues" in error) {
+    const issues = (error as { issues?: Array<{ message: string }> }).issues;
+    return issues?.[0]?.message ?? "Invalid input";
   }
-  if (user.activeStartupId && (await userOwnsStartup(user.id, user.activeStartupId)))
-    return { startupId: user.activeStartupId, error: null };
-  const startups = await (await import("./db")).getStartups(user.id);
-  if (!startups.length)
-    return { startupId: null, error: NextResponse.json({ error: "No startup found" }, { status: 404 }) };
-  return { startupId: startups[0].id, error: null };
+  return "Invalid input";
 }
 
-export async function readJson(req: NextRequest): Promise<unknown> {
+export function parseBody<T>(
+  text: string,
+): { data: T } | { error: string } {
   try {
-    return await req.json();
+    return { data: JSON.parse(text) as T };
   } catch {
-    return null;
+    return { error: "Invalid JSON body" };
   }
-}
-
-export function ok(data: unknown): NextResponse {
-  return NextResponse.json({ ok: true, data });
-}
-
-export function okData(data: unknown): NextResponse {
-  return NextResponse.json(data);
 }

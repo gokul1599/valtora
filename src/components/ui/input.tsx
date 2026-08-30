@@ -1,46 +1,79 @@
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import type {
-  InputHTMLAttributes,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-  LabelHTMLAttributes,
-} from "react";
 
-export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn("label", className)} {...props} />;
-}
-
-export function Field({
-  label,
-  hint,
-  error,
-  children,
-  className,
-}: {
-  label?: string;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
+export const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, type, ...props }, ref) => {
   return (
-    <div className={cn("field", className)}>
-      {label && <Label>{label}</Label>}
-      {children}
-      {hint && !error && <p className="text-xs text-[var(--muted)]">{hint}</p>}
-      {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
-    </div>
+    <input
+      ref={ref}
+      type={type}
+      className={cn(
+        "h-9.5 w-full rounded-lg border border-[var(--border)] bg-[var(--elevated)]",
+        "px-3 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)]",
+        "transition-colors focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]",
+        "disabled:opacity-50 disabled:pointer-events-none",
+        className,
+      )}
+      {...props}
+    />
   );
-}
+});
+Input.displayName = "Input";
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn("input", className)} {...props} />;
-}
+export const Textarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <textarea
+      ref={ref}
+      className={cn(
+        "min-h-24 w-full rounded-lg border border-[var(--border)] bg-[var(--elevated)]",
+        "px-3 py-2 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)]",
+        "transition-colors focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]",
+        "disabled:opacity-50 disabled:pointer-events-none resize-y",
+        className,
+      )}
+      {...props}
+    />
+  );
+});
+Textarea.displayName = "Textarea";
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={cn("textarea min-h-24 resize-y", className)} {...props} />;
-}
+export const Select = React.forwardRef<
+  HTMLSelectElement,
+  React.SelectHTMLAttributes<HTMLSelectElement>
+>(({ className, children, ...props }, ref) => {
+  return (
+    <select
+      ref={ref}
+      className={cn(
+        "h-9.5 w-full rounded-lg border border-[var(--border)] bg-[var(--elevated)]",
+        "px-3 text-sm text-[var(--fg)] transition-colors",
+        "focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+});
+Select.displayName = "Select";
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn("select", className)} {...props} />;
+export function Label({
+  className,
+  ...props
+}: React.LabelHTMLAttributes<HTMLLabelElement>) {
+  return (
+    <label
+      className={cn(
+        "block text-sm font-medium text-[var(--fg-secondary)] mb-1.5",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
